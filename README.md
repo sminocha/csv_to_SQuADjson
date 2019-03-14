@@ -34,5 +34,5 @@ SQuAD JSON Structure:
 
 Raw train-v2.0.json (to determine correct JSON formatting) was pulled from [Chris Chute's squad repo](https://github.com/chrischute/squad/tree/master/data).
 
-Script 
+Adapted Chris Chute SQuAD pre-processing script. 
 
