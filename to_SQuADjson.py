@@ -11,6 +11,25 @@ Adapted Chris Chute SQuAD pre-processing script.
 TODO: probably separate scripts to output train-v2.0.json, dev-v2.0.json, and test-v2.0.json
 TODO: look into differences between potential hard coded train vs. dev vs. test solution
 TODO: currently going to treat input as lists of length 3, corresponding to Q, C, A 
+
+Assumes input csv columns are in the format C, Q, A
+
+SQuAD JSON Structure: 
+
+{"data": [{
+    "title": , 
+    "paragraphs": [{
+        "qas": [
+            {"question": , "id": , "answers": [{"text": , "answer_start": }], "is_impossible": },
+            {"question": , "id": , "answers": [{"text": , "answer_start": }], "is_impossible": },
+            {"question": , "id": , "answers": [{"text": , "answer_start": }], "is_impossible": }
+        ]
+        "context":
+    }, {
+        "qas": [...]
+        "context": 
+    }]
+}] }
 '''
 
 """Script to make custom SQuAD dataset."""
@@ -36,9 +55,11 @@ def main(args):
     # Read training set
     with open(args.orig_train_path, 'r') as json_fh:
         orig_train_data = json.load(json_fh)
+        
 
     # Add new paragraphs to training set
     train_data = orig_train_data['data']
+    # print("LENGTH ORIGINAL: ". len(train_data))
     train_data.append(new_data)
     print('Num train: {}'.format(sum(1 for data in train_data
                                    for paragraph in data['paragraphs']
@@ -46,7 +67,7 @@ def main(args):
 
     # Save custom train set
     print('Saving new training set to {}...'.format(args.new_train_path))
-    with open(args.train_path, 'w') as json_fh:
+    with open(args.new_train_path, 'w') as json_fh:
         train_dict = {'version': 'v2.0', 'data': train_data}
         json.dump(train_dict, json_fh)
 
@@ -58,12 +79,20 @@ def get_paragraphs(custom_path):
     curr_qas = []
     with open(custom_path, newline='') as csv_fh:
         csv_reader = csv.reader(csv_fh, delimiter=',')
+        row_break_count = 0
         for row in csv_reader:
+            print("CUSTOM PATH, Question: ", row[0])
+            print("CUSTOM PATH, Context: ", row[1])
+            print("CUSTOM PATH, Answer: ", row[2])
             # Read all columns into a QA pair
             question = None
             answers = []
             is_impossible = False
+            print("ENUMERATION: ")
+            print(col_text for col_idx, col_text in enumerate(row))
             for col_idx, col_text in enumerate(row[:5]):
+                print("col_idx: ", col_idx)
+                print("col_text: ", col_text)
                 if col_idx == 0 and col_text:
                     # Reset when we see a new context
                     if curr_context is not None:
@@ -74,7 +103,7 @@ def get_paragraphs(custom_path):
                 if col_idx == 1:
                     question = col_text
                 elif col_idx >= 2:
-                    if col_idx == 2 and col_text.upper() == 'N/A':
+                    if col_idx == 2 and col_text.upper() == 'NO_ANSWER':
                         is_impossible = True
                     if not is_impossible:
                         answer = {'text': col_text,
@@ -82,8 +111,21 @@ def get_paragraphs(custom_path):
                         answers.append(answer)
 
             # Add QA to the current list
-            curr_qas.append(QA(question, new_uuid(), answers, is_impossible))
+            curr_QA = QA(question, new_uuid(), answers, is_impossible)
+            curr_qas.append(curr_QA)
+            print("CURR QA Question: ", curr_QA.question)
+            print("CURR QA ANSWERS: ", curr_QA.answers)
+            print("CURR QA ID: ", curr_QA.uuid)
+            print("CURR QA is_impossible: ", curr_QA.is_impossible)
 
+            row_break_count += 1
+
+            if row_break_count >= 2:
+                print("BREAKING")
+                break
+    print("CURR QAs: ", curr_qas[0])
+    print("SHOULD BE EMPT...")
+    print("PARAGRSAPHS: ", paragraphs)
     return paragraphs
 
 
@@ -143,3 +185,5 @@ if __name__ == '__main__':
     parser.add_argument('--orig_train_path', type=str, default='data/train-v2.0.json')
 
     main(parser.parse_args())
+
+    # LINE TO RUN FOR DEBUG: python to_SQuADjson.py --csv_path=output.csv --new_train_path=new-train-v2.0.json --orig_train_path=train-v2.0.json
